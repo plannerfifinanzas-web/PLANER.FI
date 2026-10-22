@@ -2,20 +2,18 @@
 <html lang="es" class="light">
 
 <head>
-    <meta name='impact-site-verification' value='d68e5b3b-ad23-449c-a400-0e216bd05466'>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="google-site-verification" content="VLSXBewWKOjIDfysDu_BjiYmf4NMz1eqIZzZdkVVCSY" />
   <meta name="description" content="PLANNER.FI: herramienta web de planificación, organización y educación financiera personal. Presupuestos, metas, deudas, sueldo y recursos educativos.">
   <meta name="theme-color" content="#059669">
   <meta name="robots" content="index,follow,max-image-preview:large">
-  <link rel="canonical" href="https://plannerfifinanzas-web.github.io/PLANER.FI/">
+  <link rel="canonical" href="https://yaninaberisso-ui.github.io/PLANNER.FI/">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="PLANNER.FI">
   <meta property="og:title" content="PLANNER.FI - Gestor Financiero Personal">
   <meta property="og:description" content="Herramienta de planificación, organización y educación financiera personal.">
-  <meta property="og:url" content="https://plannerfifinanzas-web.github.io/PLANER.FI/">
+  <meta property="og:url" content="https://yaninaberisso-ui.github.io/PLANNER.FI/">
   <title>PLANNER.FI - Gestor Financiero Personal Avanzado</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -669,7 +667,7 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
   <script>
     window.PF_MONETIZATION = {
       adsenseClient: 'ca-pub-REEMPLAZAR_CON_TU_ID',
-      analyticsId: 'G-VYMNHYJ4PD',
+      analyticsId: 'G-REEMPLAZAR_CON_TU_ID',
       searchConsoleVerification: 'REEMPLAZAR_CON_TU_CODIGO',
       autoAds: true,
       affiliateDisclosure: 'Algunos enlaces de PLANNER.FI pueden ser enlaces de afiliado. Si realizás una acción mediante uno de ellos, PLANNER.FI podría recibir una comisión, sin costo adicional para vos.',
@@ -3394,13 +3392,44 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
 
     // Theme & UI helpers
     function openModal(id) {
-      document.getElementById(id).classList.remove('hidden');
-      document.getElementById(id).classList.add('flex');
+      const modal = document.getElementById(id);
+      if (!modal) return;
+
+      // Al abrir Configurar Trabajo, mostrar siempre los datos ya guardados.
+      if (id === 'workSettingsModal' && typeof workSettings !== 'undefined' && workSettings) {
+        const fields = {
+          wsCompanyName: workSettings.companyName ?? '',
+          wsJobTitle: workSettings.jobTitle ?? '',
+          wsPayType: workSettings.payType || 'Mensual',
+          wsBaseSalary: workSettings.baseSalary ?? 0,
+          wsHourlyRate: workSettings.hourlyRate ?? 0,
+          wsNormalHoursPerDay: workSettings.normalHoursPerDay || 8,
+          wsOvertime50Rate: workSettings.overtime50Rate || 50,
+          wsOvertime100Rate: workSettings.overtime100Rate || 100
+        };
+        Object.entries(fields).forEach(([fieldId, value]) => {
+          const field = document.getElementById(fieldId);
+          if (field) field.value = value;
+        });
+      }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      modal.setAttribute('aria-hidden', 'false');
     }
 
     function closeModal(id) {
-      document.getElementById(id).classList.add('hidden');
-      document.getElementById(id).classList.remove('flex');
+      const modal = document.getElementById(id);
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      modal.setAttribute('aria-hidden', 'true');
+
+      // Restablecer los campos visuales al cerrar; los datos guardados no se borran.
+      if (id === 'workSettingsModal') {
+        const form = modal.querySelector('form');
+        if (form) form.reset();
+      }
     }
 
     function toggleDarkMode() {
