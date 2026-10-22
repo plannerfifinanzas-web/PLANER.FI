@@ -1043,7 +1043,7 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
             <p class="text-xs text-slate-500 mt-1">Administración integral de jornadas, horas extras, recibos de sueldo y análisis de ingresos laborales.</p>
           </div>
           <div class="flex flex-wrap gap-2">
-            <button onclick="resetWorkSettingsForm(); openModal('workSettingsModal')" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-white px-4 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2">
+            <button onclick="openModal('workSettingsModal')" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-white px-4 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2">
               <i data-lucide="settings" class="w-4 h-4"></i> Configurar Trabajo
             </button>
             <button onclick="saveWorkAnalysis()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow transition flex items-center gap-2">
@@ -2263,9 +2263,6 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
       document.getElementById('profileCurrencyInput').value = userConfig.currency || countryCurrency(userConfig.country || 'AR');
       document.getElementById('profileTypeInput').value = currentProfile;
       
-      // El formulario laboral se mantiene vacío; la configuración guardada
-      // permanece en workSettings y sigue alimentando los cálculos del módulo.
-
       // Handle Family section view
       const famSection = document.getElementById('familyAccessSection');
       if (currentProfile === 'Familiar') {
@@ -2401,10 +2398,7 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
         renderCharts();
       }
       if (tabId === 'work') {
-        // Al regresar al apartado, el formulario de configuración siempre inicia vacío.
-        // Los datos guardados en workSettings/Firebase no se modifican.
         resetWorkSettingsForm();
-        closeModal('workSettingsModal');
         renderWorkModule();
       }
       if (tabId === 'models') {
@@ -3385,23 +3379,38 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
       });
     }
 
+    // Limpia SOLO los campos visibles del formulario laboral.
+    // No modifica workSettings ni elimina la configuración guardada en Firebase.
+    function resetWorkSettingsForm() {
+      const form = document.querySelector('#workSettingsModal form');
+      if (form) form.reset();
+      const defaults = {
+        wsCompanyName: '',
+        wsJobTitle: '',
+        wsPayType: 'Mensual',
+        wsBaseSalary: '',
+        wsHourlyRate: '',
+        wsNormalHoursPerDay: '8',
+        wsOvertime50Rate: '50',
+        wsOvertime100Rate: '100'
+      };
+      Object.entries(defaults).forEach(([id, value]) => {
+        const field = document.getElementById(id);
+        if (field) field.value = value;
+      });
+    }
+
     // Theme & UI helpers
     function openModal(id) {
-      // Cada apertura del formulario laboral comienza vacía, sin tocar lo guardado.
       if (id === 'workSettingsModal') resetWorkSettingsForm();
-      const modal = document.getElementById(id);
-      if (!modal) return;
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
+      document.getElementById(id).classList.remove('hidden');
+      document.getElementById(id).classList.add('flex');
     }
 
     function closeModal(id) {
-      const modal = document.getElementById(id);
-      if (!modal) return;
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-      // También limpia al cerrar/cambiar de apartado, solo campos visibles.
       if (id === 'workSettingsModal') resetWorkSettingsForm();
+      document.getElementById(id).classList.add('hidden');
+      document.getElementById(id).classList.remove('flex');
     }
 
     function toggleDarkMode() {
@@ -4023,29 +4032,6 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
       return !['Día no laborable','Vacaciones','Ausencia'].includes(String(status || ''));
     }
 
-    /* Limpia únicamente los campos visibles del formulario laboral.
-       No modifica workSettings ni los datos persistidos en Firebase. */
-    function resetWorkSettingsForm(){
-      const form = document.querySelector('#workSettingsModal form');
-      if (form) form.reset();
-      const company = document.getElementById('wsCompanyName');
-      const job = document.getElementById('wsJobTitle');
-      const salary = document.getElementById('wsBaseSalary');
-      const hourly = document.getElementById('wsHourlyRate');
-      if (company) company.value = '';
-      if (job) job.value = '';
-      if (salary) salary.value = '';
-      if (hourly) hourly.value = '';
-      const payType = document.getElementById('wsPayType');
-      const normal = document.getElementById('wsNormalHoursPerDay');
-      const overtime50 = document.getElementById('wsOvertime50Rate');
-      const overtime100 = document.getElementById('wsOvertime100Rate');
-      if (payType) payType.value = 'Mensual';
-      if (normal) normal.value = '8';
-      if (overtime50) overtime50.value = '50';
-      if (overtime100) overtime100.value = '100';
-    }
-
     /* Guarda configuración laboral y calcula automáticamente el valor hora
        si el usuario solamente carga el sueldo base. */
     handleWorkSettingsSubmit = async function(e){
@@ -4064,14 +4050,15 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
       if (workSettings.hourlyRate <= 0 && workSettings.baseSalary > 0) {
         workSettings.hourlyRate = pfGetHourlyRate();
       }
+
+      // Guardar primero. Solo limpiar la interfaz si Firebase confirmó el guardado.
       const saved = await saveWorkData();
       if (!saved) return;
-      // La información ya quedó guardada en workSettings/Firebase.
-      // Se vacía solamente el formulario para permitir una nueva carga.
-      closeModal('workSettingsModal');
+
       resetWorkSettingsForm();
+      closeModal('workSettingsModal');
       renderWorkModule();
-      alert('Configuración laboral guardada. Los datos guardados se conservan y el formulario quedó vacío para una nueva carga.');
+      alert('Configuración laboral guardada. Los datos se conservaron y el formulario quedó vacío.');
     };
 
     /* Registro de jornada: valida fecha, evita horas negativas y registra
