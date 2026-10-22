@@ -1678,7 +1678,7 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
   <div id="workSettingsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
     <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
       <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i data-lucide="settings" class="w-5 h-5 text-brand-600"></i> Configuración Laboral y Reglas</h3>
-      <form autocomplete="off" onsubmit="handleWorkSettingsSubmit(event)" class="space-y-4 text-sm">
+      <form onsubmit="handleWorkSettingsSubmit(event)" class="space-y-4 text-sm">
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block font-medium mb-1 text-xs">Empresa:</label>
@@ -2401,8 +2401,10 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
         renderCharts();
       }
       if (tabId === 'work') {
-        // Solo se limpia el formulario visible; workSettings y Firebase no se modifican.
+        // Al regresar al apartado, el formulario de configuración siempre inicia vacío.
+        // Los datos guardados en workSettings/Firebase no se modifican.
         resetWorkSettingsForm();
+        closeModal('workSettingsModal');
         renderWorkModule();
       }
       if (tabId === 'models') {
@@ -3385,8 +3387,12 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
 
     // Theme & UI helpers
     function openModal(id) {
-      document.getElementById(id).classList.remove('hidden');
-      document.getElementById(id).classList.add('flex');
+      // Cada apertura del formulario laboral comienza vacía, sin tocar lo guardado.
+      if (id === 'workSettingsModal') resetWorkSettingsForm();
+      const modal = document.getElementById(id);
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
     }
 
     function closeModal(id) {
@@ -3394,6 +3400,7 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
       if (!modal) return;
       modal.classList.add('hidden');
       modal.classList.remove('flex');
+      // También limpia al cerrar/cambiar de apartado, solo campos visibles.
       if (id === 'workSettingsModal') resetWorkSettingsForm();
     }
 
@@ -4059,12 +4066,12 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
       }
       const saved = await saveWorkData();
       if (!saved) return;
-      // Se guarda workSettings primero. Después solo se vacían los campos visibles.
-      // No se borra workSettings, workDays ni ningún dato de Firebase.
+      // La información ya quedó guardada en workSettings/Firebase.
+      // Se vacía solamente el formulario para permitir una nueva carga.
       closeModal('workSettingsModal');
       resetWorkSettingsForm();
       renderWorkModule();
-      alert('Configuración laboral guardada. El formulario quedó vacío para una nueva carga.');
+      alert('Configuración laboral guardada. Los datos guardados se conservan y el formulario quedó vacío para una nueva carga.');
     };
 
     /* Registro de jornada: valida fecha, evita horas negativas y registra
