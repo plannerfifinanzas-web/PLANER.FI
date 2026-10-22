@@ -1043,7 +1043,7 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
             <p class="text-xs text-slate-500 mt-1">Administración integral de jornadas, horas extras, recibos de sueldo y análisis de ingresos laborales.</p>
           </div>
           <div class="flex flex-wrap gap-2">
-            <button onclick="openModal('workSettingsModal')" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-white px-4 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2">
+            <button onclick="resetWorkSettingsForm(); openModal('workSettingsModal')" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-white px-4 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2">
               <i data-lucide="settings" class="w-4 h-4"></i> Configurar Trabajo
             </button>
             <button onclick="saveWorkAnalysis()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow transition flex items-center gap-2">
@@ -2263,17 +2263,8 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
       document.getElementById('profileCurrencyInput').value = userConfig.currency || countryCurrency(userConfig.country || 'AR');
       document.getElementById('profileTypeInput').value = currentProfile;
       
-      // Sync work settings modal inputs
-      if(document.getElementById('wsCompanyName')) {
-        document.getElementById('wsCompanyName').value = workSettings.companyName || '';
-        document.getElementById('wsJobTitle').value = workSettings.jobTitle || '';
-        document.getElementById('wsPayType').value = workSettings.payType || 'Mensual';
-        document.getElementById('wsBaseSalary').value = workSettings.baseSalary || 0;
-        document.getElementById('wsHourlyRate').value = workSettings.hourlyRate || 0;
-        document.getElementById('wsNormalHoursPerDay').value = workSettings.normalHoursPerDay || 8;
-        document.getElementById('wsOvertime50Rate').value = workSettings.overtime50Rate || 50;
-        document.getElementById('wsOvertime100Rate').value = workSettings.overtime100Rate || 100;
-      }
+      // El formulario laboral se mantiene vacío; la configuración guardada
+      // permanece en workSettings y sigue alimentando los cálculos del módulo.
 
       // Handle Family section view
       const famSection = document.getElementById('familyAccessSection');
@@ -3392,44 +3383,13 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
 
     // Theme & UI helpers
     function openModal(id) {
-      const modal = document.getElementById(id);
-      if (!modal) return;
-
-      // Al abrir Configurar Trabajo, mostrar siempre los datos ya guardados.
-      if (id === 'workSettingsModal' && typeof workSettings !== 'undefined' && workSettings) {
-        const fields = {
-          wsCompanyName: workSettings.companyName ?? '',
-          wsJobTitle: workSettings.jobTitle ?? '',
-          wsPayType: workSettings.payType || 'Mensual',
-          wsBaseSalary: workSettings.baseSalary ?? 0,
-          wsHourlyRate: workSettings.hourlyRate ?? 0,
-          wsNormalHoursPerDay: workSettings.normalHoursPerDay || 8,
-          wsOvertime50Rate: workSettings.overtime50Rate || 50,
-          wsOvertime100Rate: workSettings.overtime100Rate || 100
-        };
-        Object.entries(fields).forEach(([fieldId, value]) => {
-          const field = document.getElementById(fieldId);
-          if (field) field.value = value;
-        });
-      }
-
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-      modal.setAttribute('aria-hidden', 'false');
+      document.getElementById(id).classList.remove('hidden');
+      document.getElementById(id).classList.add('flex');
     }
 
     function closeModal(id) {
-      const modal = document.getElementById(id);
-      if (!modal) return;
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-      modal.setAttribute('aria-hidden', 'true');
-
-      // Restablecer los campos visuales al cerrar; los datos guardados no se borran.
-      if (id === 'workSettingsModal') {
-        const form = modal.querySelector('form');
-        if (form) form.reset();
-      }
+      document.getElementById(id).classList.add('hidden');
+      document.getElementById(id).classList.remove('flex');
     }
 
     function toggleDarkMode() {
@@ -4051,9 +4011,32 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
       return !['Día no laborable','Vacaciones','Ausencia'].includes(String(status || ''));
     }
 
+    /* Limpia únicamente los campos visibles del formulario laboral.
+       No modifica workSettings ni los datos persistidos en Firebase. */
+    function resetWorkSettingsForm(){
+      const form = document.querySelector('#workSettingsModal form');
+      if (form) form.reset();
+      const company = document.getElementById('wsCompanyName');
+      const job = document.getElementById('wsJobTitle');
+      const salary = document.getElementById('wsBaseSalary');
+      const hourly = document.getElementById('wsHourlyRate');
+      if (company) company.value = '';
+      if (job) job.value = '';
+      if (salary) salary.value = '';
+      if (hourly) hourly.value = '';
+      const payType = document.getElementById('wsPayType');
+      const normal = document.getElementById('wsNormalHoursPerDay');
+      const overtime50 = document.getElementById('wsOvertime50Rate');
+      const overtime100 = document.getElementById('wsOvertime100Rate');
+      if (payType) payType.value = 'Mensual';
+      if (normal) normal.value = '8';
+      if (overtime50) overtime50.value = '50';
+      if (overtime100) overtime100.value = '100';
+    }
+
     /* Guarda configuración laboral y calcula automáticamente el valor hora
        si el usuario solamente carga el sueldo base. */
-    handleWorkSettingsSubmit = function(e){
+    handleWorkSettingsSubmit = async function(e){
       e.preventDefault();
       const normal = pfN(document.getElementById('wsNormalHoursPerDay')?.value) || 8;
       workSettings = {
@@ -4069,10 +4052,14 @@ html.dark .pf-editor-section{background:#111827;border-color:#334155}
       if (workSettings.hourlyRate <= 0 && workSettings.baseSalary > 0) {
         workSettings.hourlyRate = pfGetHourlyRate();
       }
-      saveWorkData();
+      const saved = await saveWorkData();
+      if (!saved) return;
+      // La información ya quedó guardada en workSettings/Firebase.
+      // Se vacía solamente el formulario para permitir una nueva carga.
+      resetWorkSettingsForm();
       closeModal('workSettingsModal');
       renderWorkModule();
-      alert('Configuración laboral guardada. Los cálculos ya están activos.');
+      alert('Configuración laboral guardada. Los cálculos ya están activos. El formulario quedó vacío para una nueva carga.');
     };
 
     /* Registro de jornada: valida fecha, evita horas negativas y registra
